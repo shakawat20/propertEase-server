@@ -22,6 +22,7 @@ async function run() {
         const UsersCollections = client.db('regal-residences').collection('users')
         const ResidencesCollections = client.db('regal-residences').collection('residences')
         const bookingCollections = client.db('regal-residences').collection('bookings')
+      
         app.post('/users', async (req, res) => {
             const data = req.body
             const query = {
@@ -146,7 +147,10 @@ async function run() {
         });
 
 
-
+        app.get('/', async (req, res) => {
+            res.send('hello world')
+            console.log('regal-residence-server')
+        })
 
 
     }
