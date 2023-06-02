@@ -162,12 +162,16 @@ async function run() {
     }
 }
 
-
-
-
-
+app.get('/', async (req, res) => {
+    res.send('hello world')
+    console.log('regal-residence-server')
+})
 
 run().catch(console.dir)
+
+
+
+
 
 
 app.listen(PORT, function (err) {
