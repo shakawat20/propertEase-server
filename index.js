@@ -14,15 +14,18 @@ app.use(express.json())
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.obhaluk.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
-
+const stripe = require("stripe")(process.env.STRIPE_SECRET)
 
 async function run() {
     try {
-         client.connect()
+        client.connect()
         const UsersCollections = client.db('regal-residences').collection('users')
         const ResidencesCollections = client.db('regal-residences').collection('residences')
         const bookingCollections = client.db('regal-residences').collection('bookings')
-      
+
+        const ordersCollections = client.db('regal-residences').collection('orders')
+
+
         app.post('/users', async (req, res) => {
             const data = req.body
             const query = {
@@ -110,6 +113,19 @@ async function run() {
 
 
 
+        app.post('/orders', async (req, res) => {
+            const order = req?.body
+            const orderInfo = await ordersCollections.insertOne(order)
+            res.send(orderInfo)
+        })
+        app.get('/orders', async (req, res) => {
+            const orders = await ordersCollections.find().toArray()
+            res.send(orders)
+        })
+
+
+
+
         app.get('/bookings/myBookings/:id', async (req, res) => {
             const email = req.params.id;
             const filter = { email: email }
@@ -152,6 +168,42 @@ async function run() {
             console.log('regal-residence-server')
         })
 
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+            console.log(typeof (price))
+            const finalPrice = parseInt(price)
+            const amount = finalPrice * 100
+            console.log("jjjjj", typeof (amount))
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                "payment_method_types": [
+                    "card"
+                ]
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+
+        app.delete('/removeBooking/:id', async (req, res) => {
+            const id = req?.params?.id;
+            console.log(id)
+            const query = { _id: new ObjectId(id) }
+            const removedBooking = await bookingCollections.deleteOne(query)
+            res.send(removedBooking)
+
+        });
+        app.delete('/orders/:id', async (req, res) => {
+            const email = req.params?.id
+            console.log(email)
+            const query={ _id: new ObjectId(email) }
+            const removedOrder = await ordersCollections.deleteOne(query)
+            console.log(removedOrder)
+            res.send(removedOrder)
+        })
+
 
     }
 
@@ -161,13 +213,14 @@ async function run() {
 
     }
 }
+run().catch(console.dir)
 
 app.get('/', async (req, res) => {
     res.send('hello world')
     console.log('regal-residence-server')
 })
 
-run().catch(console.dir)
+
 
 
 
