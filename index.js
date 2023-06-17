@@ -1,6 +1,7 @@
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const { ObjectId } = require('mongodb');
 const express = require('express');
+const jwt = require('jsonwebtoken');
 
 require('dotenv').config()
 const cors = require('cors')
@@ -15,6 +16,23 @@ app.use(express.json())
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.obhaluk.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 const stripe = require("stripe")(process.env.STRIPE_SECRET)
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(' ')[1];
+    if (!authHeader) {
+        res.status(401).send({ message: "unauthorized access" })
+    }
+
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+
+        if (err) {
+            res.status(401).send({ message: "unauthorized access" })
+        }
+        req.decoded = decoded;
+        next()
+    })
+}
 
 async function run() {
     try {
@@ -22,8 +40,15 @@ async function run() {
         const UsersCollections = client.db('regal-residences').collection('users')
         const ResidencesCollections = client.db('regal-residences').collection('residences')
         const bookingCollections = client.db('regal-residences').collection('bookings')
-
         const ordersCollections = client.db('regal-residences').collection('orders')
+
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            const token = await jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            console.log("khan", token)
+            res.send({ token })
+
+        })
 
 
         app.post('/users', async (req, res) => {
@@ -126,8 +151,12 @@ async function run() {
 
 
 
-        app.get('/bookings/myBookings/:id', async (req, res) => {
+        app.get('/bookings/myBookings/:id', verifyJWT, async (req, res) => {
             const email = req.params.id;
+            const decoded = req.decoded
+            if (email !== decoded.email) {
+                res.status(403).send({ message: "unauthorized access" })
+            }
             const filter = { email: email }
             const bookings = await bookingCollections.find(filter).toArray()
             console.log(bookings)
@@ -198,7 +227,7 @@ async function run() {
         app.delete('/orders/:id', async (req, res) => {
             const email = req.params?.id
             console.log(email)
-            const query={ _id: new ObjectId(email) }
+            const query = { _id: new ObjectId(email) }
             const removedOrder = await ordersCollections.deleteOne(query)
             console.log(removedOrder)
             res.send(removedOrder)
