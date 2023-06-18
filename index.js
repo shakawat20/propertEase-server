@@ -17,22 +17,26 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 const stripe = require("stripe")(process.env.STRIPE_SECRET)
 function verifyJWT(req, res, next) {
-    const authHeader = req.headers.authorization;
-    const token = authHeader.split(' ')[1];
+    const authHeader = req.headers.authorization  
     if (!authHeader) {
-        res.status(401).send({ message: "unauthorized access" })
+        console.log("fucked up")
+        return res.status(401).send({ message: 'UnAuthorized access' })
     }
-
-
+    const token = authHeader.split(' ')[1]
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
-
         if (err) {
-            res.status(401).send({ message: "unauthorized access" })
+            return res.status(403).send({ message: 'Forbidden access' })
+
         }
-        req.decoded = decoded;
+        else{
+               req.decoded = decoded 
         next()
-    })
+        }
+     
+    });
+
 }
+
 
 async function run() {
     try {
@@ -111,7 +115,7 @@ async function run() {
         app.put('/makeAdmin/:id', async (req, res) => {
             const admin = req.params.id;
             const user = await UsersCollections.findOne({ email: admin })
-            console.log("hello")
+
             if (user) {
                 const filter = { email: admin }
                 const updateDoc = {
@@ -152,15 +156,18 @@ async function run() {
 
 
         app.get('/bookings/myBookings/:id', verifyJWT, async (req, res) => {
-            const email = req.params.id;
-            const decoded = req.decoded
+            const email = req?.params.id;
+            const decoded = req?.decoded
+            
             if (email !== decoded.email) {
-                res.status(403).send({ message: "unauthorized access" })
+                return res.status(403).send({ message: "unauthorized access" })
             }
-            const filter = { email: email }
-            const bookings = await bookingCollections.find(filter).toArray()
-            console.log(bookings)
-            res.send(bookings)
+            else {
+                const filter = { email: email }
+                const bookings = await bookingCollections.find(filter).toArray()
+                return res.send(bookings)
+            }
+
         })
 
 
