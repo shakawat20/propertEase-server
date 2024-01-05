@@ -19,7 +19,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET)
 function verifyJWT(req, res, next) {
     const authHeader = req.headers.authorization  
     if (!authHeader) {
-        console.log("fucked up")
+      
         return res.status(401).send({ message: 'UnAuthorized access' })
     }
     const token = authHeader.split(' ')[1]
